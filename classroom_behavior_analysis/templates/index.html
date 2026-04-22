@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂行为智能分析系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; color: #333; }
+        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 20px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header p { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .tabs { display: flex; gap: 4px; background: white; border-radius: 12px; padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .tab { flex: 1; padding: 12px 20px; border: none; background: transparent; cursor: pointer; border-radius: 8px; font-size: 15px; font-weight: 500; color: #666; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .tab:hover { background: #f5f5f5; color: #333; }
+        .tab.active { background: #1a73e8; color: white; box-shadow: 0 2px 6px rgba(26,115,232,0.3); }
+        .tab .icon { font-size: 18px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+        .card-title .dot { width: 4px; height: 20px; background: #1a73e8; border-radius: 2px; }
+        .btn { padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-danger { background: #d93025; color: white; }
+        .btn-danger:hover { background: #b3261e; }
+        .btn-success { background: #1e8e3e; color: white; }
+        .btn-success:hover { background: #137333; }
+        .btn-secondary { background: #f1f3f4; color: #5f6368; }
+        .btn-secondary:hover { background: #e8eaed; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .input-group input { width: 100%; padding: 10px 14px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+        .input-group input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+        .video-container { background: #000; border-radius: 8px; overflow: hidden; position: relative; min-height: 360px; display: flex; align-items: center; justify-content: center; }
+        .video-container img { max-width: 100%; max-height: 500px; }
+        .video-placeholder { color: #999; text-align: center; }
+        .video-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+        .status-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; margin-top: 12px; font-size: 14px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.green { background: #1e8e3e; animation: pulse 1.5s infinite; }
+        .status-dot.red { background: #d93025; }
+        .status-dot.yellow { background: #f9ab00; }
+        .status-dot.gray { background: #999; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .upload-area { border: 2px dashed #dadce0; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-area:hover { border-color: #1a73e8; background: #f0f7ff; }
+        .upload-area.dragover { border-color: #1a73e8; background: #e8f0fe; }
+        .upload-area .icon { font-size: 40px; color: #1a73e8; margin-bottom: 12px; }
+        .upload-area p { color: #666; font-size: 14px; }
+        .upload-area .hint { color: #999; font-size: 12px; margin-top: 8px; }
+        #videoFileInput { display: none; }
+        .report-section { margin-top: 24px; }
+        .report-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-item { background: #f8f9fa; border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1a73e8; }
+        .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+        .behavior-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .behavior-bar .label { width: 80px; font-size: 14px; text-align: right; color: #555; }
+        .behavior-bar .bar-bg { flex: 1; height: 24px; background: #f0f0f0; border-radius: 12px; overflow: hidden; }
+        .behavior-bar .bar-fill { height: 100%; border-radius: 12px; transition: width 0.5s ease; display: flex; align-items: center; padding-left: 8px; font-size: 12px; color: white; font-weight: 500; }
+        .behavior-bar .count { width: 60px; font-size: 14px; color: #666; }
+        .kimi-section { background: #f0f7ff; border-radius: 10px; padding: 20px; margin-top: 16px; }
+        .kimi-section h4 { color: #1a73e8; margin-bottom: 12px; font-size: 15px; }
+        .kimi-section p { font-size: 14px; line-height: 1.8; color: #444; }
+        .kimi-section ul { padding-left: 20px; margin-top: 8px; }
+        .kimi-section li { font-size: 14px; line-height: 1.8; color: #444; }
+        .report-list { list-style: none; }
+        .report-item { padding: 16px; border: 1px solid #e8eaed; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 16px; }
+        .report-item:hover { border-color: #1a73e8; background: #f0f7ff; }
+        .report-item .info { flex: 1; }
+        .report-item .info .name { font-weight: 500; font-size: 15px; color: #1a1a1a; }
+        .report-item .info .meta { font-size: 13px; color: #888; margin-top: 4px; }
+        .report-item .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .badge-success { background: #e6f4ea; color: #1e8e3e; }
+        .badge-warning { background: #fef7e0; color: #b06000; }
+        .badge-info { background: #e8f0fe; color: #1a73e8; }
+        .focus-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+        .focus-high { background: #e6f4ea; color: #1e8e3e; }
+        .focus-mid { background: #fef7e0; color: #b06000; }
+        .focus-low { background: #fce8e6; color: #d93025; }
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .alert-warning { background: #fef7e0; color: #b06000; border: 1px solid #f9ab00; }
+        .alert-success { background: #e6f4ea; color: #1e8e3e; border: 1px solid #1e8e3e; }
+        .alert-error { background: #fce8e6; color: #d93025; border: 1px solid #d93025; }
+        .alert-info { background: #e8f0fe; color: #1a73e8; border: 1px solid #1a73e8; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid #ddd; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-text { font-size: 14px; color: #666; margin-top: 8px; }
+        .api-key-status { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .hidden { display: none !important; }
+        .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎓 课堂行为智能分析系统</h1>
+        <p>基于YOLOv8-pose + Kimi 2.5 的智能课堂行为检测与分析平台</p>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('video')">
+                <span class="icon">🎬</span> 视频检测
+            </button>
+            <button class="tab" onclick="switchTab('camera')">
+                <span class="icon">📹</span> 实时摄像头
+            </button>
+            <button class="tab" onclick="switchTab('reports')">
+                <span class="icon">📊</span> 查看报告
+            </button>
+            <button class="tab" onclick="switchTab('settings')">
+                <span class="icon">⚙️</span> API设置
+            </button>
+        </div>
+
+        <!-- 视频检测面板 -->
+        <div id="panel-video" class="panel active">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span>上传视频文件</div>
+                <div id="apiKeyWarningVideo" class="alert alert-warning hidden">
+                    ⚠️ 请先在「API设置」中配置Kimi API Key，才能进行检测与分析
+                </div>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('videoFileInput').click()">
+                    <div class="icon">📁</div>
+                    <p>点击或拖拽视频文件到此处上传</p>
+                    <p class="hint">支持 MP4、AVI、MOV、MKV 格式，最大500MB</p>
+                </div>
+                <input type="file" id="videoFileInput" accept=".mp4,.avi,.mov,.mkv,.flv,.wmv">
+            </div>
+
+            <div id="videoDetectionArea" class="card hidden">
+                <div class="card-title"><span class="dot"></span>检测过程</div>
+                <div class="video-container" id="videoStreamContainer">
+                    <img id="videoStream" src="" alt="" style="display:none;">
+                    <div id="videoPlaceholder" class="video-placeholder">
+                        <div class="icon">⏳</div>
+                        <p>正在加载检测画面...</p>
+                    </div>
+                </div>
+                <div class="status-bar" id="videoStatusBar">
+                    <span class="status-dot yellow"></span>
+                    <span id="videoStatusText">正在检测中...</span>
+                    <div class="loading"></div>
+                </div>
+            </div>
+
+            <div id="videoReportArea" class="report-section hidden"></div>
+        </div>
+
+        <!-- 实时摄像头面板 -->
+        <div id="panel-camera" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span>实时摄像头检测</div>
+                <div id="apiKeyWarningCamera" class="alert alert-warning hidden">
+                    ⚠️ 请先在「API设置」中配置Kimi API Key，才能进行检测与分析
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btnStartCamera" onclick="startCamera()">▶ 打开摄像头</button>
+                    <button class="btn btn-danger" id="btnStopCamera" onclick="stopCamera()" disabled>⏹ 关闭摄像头并分析</button>
+                </div>
+            </div>
+
+            <div id="cameraDetectionArea" class="card hidden">
+                <div class="card-title"><span class="dot"></span>实时检测画面</div>
+                <div class="video-container" id="cameraStreamContainer">
+                    <img id="cameraStream" src="" alt="" style="display:none;">
+                    <div id="cameraPlaceholder" class="video-placeholder">
+                        <div class="icon">📹</div>
+                        <p>等待摄像头开启...</p>
+                    </div>
+                </div>
+                <div class="status-bar" id="cameraStatusBar">
+                    <span class="status-dot green"></span>
+                    <span id="cameraStatusText">摄像头运行中</span>
+                    <span id="cameraFrameInfo"></span>
+                </div>
+            </div>
+
+            <div id="cameraReportArea" class="report-section hidden"></div>
+        </div>
+
+        <!-- 查看报告面板 -->
+        <div id="panel-reports" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span>历史分析报告</div>
+                <button class="btn btn-secondary" onclick="loadReports()" style="margin-bottom:16px;">🔄 刷新报告列表</button>
+                <div id="reportListContainer">
+                    <p style="color:#999; text-align:center; padding:40px;">点击刷新加载报告列表</p>
+                </div>
+            </div>
+            <div id="reportDetailArea" class="report-section hidden"></div>
+        </div>
+
+        <!-- API设置面板 -->
+        <div id="panel-settings" class="panel">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span>Kimi 2.5 API Key 设置</div>
+                <div class="api-key-status">
+                    <span id="apiKeyStatusDot" class="status-dot gray"></span>
+                    <span id="apiKeyStatusText">检查中...</span>
+                </div>
+                <div class="input-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="请输入Kimi API Key（从 platform.moonshot.cn 获取）">
+                </div>
+                <button class="btn btn-primary" onclick="setApiKey()">💾 保存并验证</button>
+                <p style="margin-top:12px; font-size:13px; color:#888;">
+                    获取API Key: <a href="https://platform.moonshot.cn/" target="_blank" style="color:#1a73e8;">https://platform.moonshot.cn/</a><br>
+                    设置后API Key将保存到本地.env文件中，仅用于调用Kimi大模型进行行为分析。
+                </p>
+            </div>
+        </div>
+    </div>
+
+<script>
+const BEHAVIOR_LABELS = {
+    'raise_hand': '举手', 'head_down': '低头', 'lying_on_desk': '趴桌',
+    'good_posture': '坐姿端正', 'discussing': '讨论中', 'unknown': '未知'
+};
+const BEHAVIOR_COLORS = {
+    'raise_hand': '#1e8e3e', 'head_down': '#f9ab00', 'lying_on_desk': '#d93025',
+    'good_posture': '#1a73e8', 'discussing': '#9c27b0', 'unknown': '#999'
+};
+
+let cameraPollingTimer = null;
+let videoPollingTimer = null;
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+    if (name === 'settings') checkApiKey();
+    if (name === 'video' || name === 'camera') checkApiKeyWarning();
+}
+
+async function checkApiKey() {
+    try {
+        const resp = await fetch('/api/check_api_key');
+        const data = await resp.json();
+        const dot = document.getElementById('apiKeyStatusDot');
+        const text = document.getElementById('apiKeyStatusText');
+        if (data.has_key) {
+            dot.className = 'status-dot green';
+            text.textContent = 'API Key 已配置';
+            text.style.color = '#1e8e3e';
+        } else {
+            dot.className = 'status-dot red';
+            text.textContent = 'API Key 未配置';
+            text.style.color = '#d93025';
+        }
+        return data.has_key;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function checkApiKeyWarning() {
+    try {
+        const resp = await fetch('/api/check_api_key');
+        const data = await resp.json();
+        const w1 = document.getElementById('apiKeyWarningVideo');
+        const w2 = document.getElementById('apiKeyWarningCamera');
+        if (data.has_key) {
+            w1.classList.add('hidden');
+            w2.classList.add('hidden');
+        } else {
+            w1.classList.remove('hidden');
+            w2.classList.remove('hidden');
+        }
+        return data.has_key;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function setApiKey() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) { alert('请输入API Key'); return; }
+    try {
+        const resp = await fetch('/api/set_api_key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({api_key: key})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            alert('✅ ' + data.message);
+            checkApiKey();
+            checkApiKeyWarning();
+        } else {
+            alert('❌ ' + data.message);
+        }
+    } catch (e) {
+        alert('请求失败: ' + e.message);
+    }
+}
+
+// ========== 视频上传与检测 ==========
+
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('videoFileInput');
+
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length) uploadVideo(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) uploadVideo(e.target.files[0]); });
+
+async function uploadVideo(file) {
+    const hasKey = await checkApiKeyWarning();
+    if (!hasKey) { alert('请先在「API设置」中配置API Key'); return; }
+
+    const formData = new FormData();
+    formData.append('video', file);
+
+    try {
+        const resp = await fetch('/api/upload_video', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.success) {
+            document.getElementById('videoDetectionArea').classList.remove('hidden');
+            document.getElementById('videoReportArea').classList.add('hidden');
+            document.getElementById('videoReportArea').innerHTML = '';
+
+            const img = document.getElementById('videoStream');
+            img.src = '/api/video_stream?' + Date.now();
+            img.style.display = 'block';
+            document.getElementById('videoPlaceholder').style.display = 'none';
+
+            document.getElementById('videoStatusBar').innerHTML =
+                '<span class="status-dot yellow"></span><span id="videoStatusText">正在检测中...</span><div class="loading"></div>';
+
+            startVideoPolling();
+        } else {
+            alert('上传失败: ' + data.message);
+        }
+    } catch (e) {
+        alert('上传失败: ' + e.message);
+    }
+}
+
+function startVideoPolling() {
+    if (videoPollingTimer) clearInterval(videoPollingTimer);
+    videoPollingTimer = setInterval(async () => {
+        try {
+            const resp = await fetch('/api/video_progress');
+            const data = await resp.json();
+            if (data.progress === 'done' && data.result) {
+                clearInterval(videoPollingTimer);
+                videoPollingTimer = null;
+                document.getElementById('videoStatusBar').innerHTML =
+                    '<span class="status-dot green"></span><span>检测完成</span>';
+                renderReport(data.result, 'videoReportArea');
+            } else if (data.progress === 'analyzing') {
+                document.getElementById('videoStatusText').textContent = '正在调用Kimi大模型分析...';
+            } else if (data.progress === 'error') {
+                clearInterval(videoPollingTimer);
+                videoPollingTimer = null;
+                document.getElementById('videoStatusBar').innerHTML =
+                    '<span class="status-dot red"></span><span>检测失败: ' + (data.result?.error || '未知错误') + '</span>';
+            }
+        } catch (e) {}
+    }, 2000);
+}
+
+// ========== 摄像头检测 ==========
+
+async function startCamera() {
+    const hasKey = await checkApiKeyWarning();
+    if (!hasKey) { alert('请先在「API设置」中配置API Key'); return; }
+
+    try {
+        const resp = await fetch('/api/start_camera', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({camera_id: 0})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            document.getElementById('btnStartCamera').disabled = true;
+            document.getElementById('btnStopCamera').disabled = false;
+            document.getElementById('cameraDetectionArea').classList.remove('hidden');
+            document.getElementById('cameraReportArea').classList.add('hidden');
+            document.getElementById('cameraReportArea').innerHTML = '';
+
+            const img = document.getElementById('cameraStream');
+            img.src = '/api/camera_stream?' + Date.now();
+            img.style.display = 'block';
+            document.getElementById('cameraPlaceholder').style.display = 'none';
+
+            startCameraPolling();
+        } else {
+            alert('开启摄像头失败: ' + data.message);
+        }
+    } catch (e) {
+        alert('请求失败: ' + e.message);
+    }
+}
+
+function startCameraPolling() {
+    if (cameraPollingTimer) clearInterval(cameraPollingTimer);
+    cameraPollingTimer = setInterval(async () => {
+        try {
+            const resp = await fetch('/api/camera_status');
+            const data = await resp.json();
+            const info = document.getElementById('cameraFrameInfo');
+            if (data.running) {
+                info.textContent = ` | 帧数: ${data.frame_count} | 运行: ${data.elapsed}秒`;
+            } else {
+                clearInterval(cameraPollingTimer);
+                cameraPollingTimer = null;
+                info.textContent = '';
+                document.getElementById('cameraStatusBar').innerHTML =
+                    '<span class="status-dot gray"></span><span>摄像头已关闭</span>';
+            }
+        } catch (e) {}
+    }, 2000);
+}
+
+async function stopCamera() {
+    document.getElementById('btnStopCamera').disabled = true;
+    document.getElementById('btnStartCamera').disabled = true;
+    document.getElementById('cameraStatusBar').innerHTML =
+        '<span class="status-dot yellow"></span><span>正在停止摄像头并进行Kimi分析...</span><div class="loading"></div>';
+
+    try {
+        const resp = await fetch('/api/stop_camera', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success && data.result) {
+            document.getElementById('btnStartCamera').disabled = false;
+            document.getElementById('cameraStatusBar').innerHTML =
+                '<span class="status-dot green"></span><span>检测完成</span>';
+            renderReport(data.result, 'cameraReportArea');
+        } else {
+            document.getElementById('btnStartCamera').disabled = false;
+            alert('停止失败: ' + (data.message || '未知错误'));
+            document.getElementById('cameraStatusBar').innerHTML =
+                '<span class="status-dot red"></span><span>操作失败</span>';
+        }
+    } catch (e) {
+        document.getElementById('btnStartCamera').disabled = false;
+        alert('请求失败: ' + e.message);
+    }
+}
+
+// ========== 报告查看 ==========
+
+async function loadReports() {
+    const container = document.getElementById('reportListContainer');
+    container.innerHTML = '<p style="text-align:center; padding:20px;"><div class="loading" style="margin:0 auto;"></div></p>';
+    try {
+        const resp = await fetch('/api/reports');
+        const data = await resp.json();
+        if (data.reports.length === 0) {
+            container.innerHTML = '<p style="color:#999; text-align:center; padding:40px;">暂无分析报告</p>';
+            return;
+        }
+        let html = '<ul class="report-list">';
+        data.reports.forEach(r => {
+            const focusClass = r.focus_rate >= 0.7 ? 'badge-success' : r.focus_rate >= 0.4 ? 'badge-warning' : 'badge-info';
+            const focusText = (r.focus_rate * 100).toFixed(1) + '%';
+            const kimiBadge = r.has_kimi ? '<span class="badge badge-info">AI分析</span>' : '';
+            const time = r.analysis_time ? new Date(r.analysis_time).toLocaleString('zh-CN') : r.date;
+            // 使用 data-id 属性存储报告ID，避免 onclick 中的引号问题
+            html += `<li class="report-item" data-report-id="${r.id}">
+                <div class="info">
+                    <div class="name">${r.video_name || r.name}</div>
+                    <div class="meta">${time} | ${r.total_frames}帧 | ${r.total_persons}人</div>
+                </div>
+                <span class="badge ${focusClass}">专注度 ${focusText}</span>
+                ${kimiBadge}
+            </li>`;
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+        // 绑定点击事件
+        container.querySelectorAll('.report-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const reportId = this.getAttribute('data-report-id');
+                loadReport(reportId);
+            });
+        });
+    } catch (e) {
+        container.innerHTML = '<p style="color:#d93025; text-align:center; padding:20px;">加载失败</p>';
+    }
+}
+
+async function loadReport(reportId) {
+    console.log('加载报告:', reportId);
+    const area = document.getElementById('reportDetailArea');
+    area.classList.remove('hidden');
+    area.innerHTML = '<div class="card" style="text-align:center; padding:40px;"><div class="loading" style="margin:0 auto;"></div><p style="margin-top:12px; color:#999;">加载报告中...</p></div>';
+    try {
+        const url = '/api/report/' + encodeURIComponent(reportId);
+        console.log('请求URL:', url);
+        const resp = await fetch(url);
+        const data = await resp.json();
+        console.log('响应数据:', data);
+        if (data.success) {
+            renderReport(data.report, 'reportDetailArea');
+        } else {
+            area.innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+        }
+    } catch (e) {
+        console.error('加载报告失败:', e);
+        area.innerHTML = '<div class="alert alert-error">加载失败: ' + e.message + '</div>';
+    }
+}
+
+// ========== 报告渲染 ==========
+
+function renderReport(report, containerId) {
+    const container = document.getElementById(containerId);
+    const stats = report.statistics || {};
+    const kimi = report.kimi_analysis;
+    const behaviors = stats.behaviors || {};
+    const totalBehaviorCount = Object.values(behaviors).reduce((a, b) => a + b, 0) || 1;
+
+    let focusClass = 'focus-low';
+    if (stats.focus_rate >= 0.7) focusClass = 'focus-high';
+    else if (stats.focus_rate >= 0.4) focusClass = 'focus-mid';
+
+    const focusLabel = stats.focus_rate >= 0.7 ? '高' : stats.focus_rate >= 0.4 ? '中' : '低';
+
+    let html = `<div class="report-card">
+        <div class="card-title"><span class="dot"></span>分析报告</div>
+
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">${stats.total_frames || 0}</div>
+                <div class="stat-label">检测帧数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.total_persons || 0}</div>
+                <div class="stat-label">检测人次</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${(stats.duration_seconds || 0).toFixed(1)}s</div>
+                <div class="stat-label">检测时长</div>
+            </div>
+            <div class="stat-item">
+                <div class="focus-indicator ${focusClass}">
+                    ${(stats.focus_rate * 100).toFixed(1)}% - ${focusLabel}
+                </div>
+                <div class="stat-label">整体专注度</div>
+            </div>
+        </div>
+
+        <div class="card-title" style="margin-top:20px;"><span class="dot"></span>行为分布</div>`;
+
+    const sortedBehaviors = Object.entries(behaviors).sort((a, b) => b[1] - a[1]);
+    for (const [key, count] of sortedBehaviors) {
+        const pct = (count / totalBehaviorCount * 100).toFixed(1);
+        const label = BEHAVIOR_LABELS[key] || key;
+        const color = BEHAVIOR_COLORS[key] || '#999';
+        html += `<div class="behavior-bar">
+            <span class="label">${label}</span>
+            <div class="bar-bg">
+                <div class="bar-fill" style="width:${pct}%; background:${color};">${pct}%</div>
+            </div>
+            <span class="count">${count}次</span>
+        </div>`;
+    }
+
+    if (kimi) {
+        html += `<div class="kimi-section">
+            <h4>🤖 Kimi AI 智能分析</h4>
+            <p><strong>整体评价：</strong>${kimi.summary || '无'}</p>
+            <p style="margin-top:8px;"><strong>专注度等级：</strong>${kimi.focus_level || '未知'} &nbsp;&nbsp; <strong>参与度评分：</strong>${kimi.engagement_score || 0}/100</p>`;
+
+        if (kimi.issues && kimi.issues.length > 0) {
+            html += `<p style="margin-top:12px;"><strong>⚠️ 发现问题：</strong></p><ul>`;
+            kimi.issues.forEach(i => { html += `<li>${i}</li>`; });
+            html += `</ul>`;
+        }
+
+        if (kimi.suggestions && kimi.suggestions.length > 0) {
+            html += `<p style="margin-top:12px;"><strong>💡 改进建议：</strong></p><ul>`;
+            kimi.suggestions.forEach(s => { html += `<li>${s}</li>`; });
+            html += `</ul>`;
+        }
+
+        if (kimi._meta) {
+            html += `<p style="margin-top:12px; font-size:12px; color:#999;">模型: ${kimi._meta.model || 'N/A'} | Token: ${kimi._meta.tokens_used || 'N/A'}</p>`;
+        }
+
+        html += `</div>`;
+    } else {
+        html += `<div class="kimi-section" style="background:#fef7e0;">
+            <h4 style="color:#b06000;">⚠️ 未进行Kimi AI分析</h4>
+            <p>未配置API Key或分析失败，仅展示统计数据。请在「API设置」中配置Kimi API Key后重新检测。</p>
+        </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+    container.classList.remove('hidden');
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ========== 初始化 ==========
+checkApiKey();
+checkApiKeyWarning();
+</script>
+</body>
+</html>
