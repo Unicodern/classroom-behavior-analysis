@@ -438,11 +438,18 @@ class BehaviorDetector:
         # 判断是否为摄像头
         is_camera = isinstance(source, int)
         
+        # 使用默认后端打开摄像头（避免DSHOW兼容性问题）
         cap = cv2.VideoCapture(source)
+        
+        # 如果默认后端失败且是摄像头，尝试DSHOW
+        if not cap.isOpened() and is_camera:
+            logger.warning(f"默认后端无法打开摄像头，尝试DSHOW后端...")
+            cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+        
         if not cap.isOpened():
             raise ValueError(f"无法打开视频源: {source}")
         
-        # 获取视频信息
+        # 获取视频信息（使用摄像头实际支持的分辨率）
         fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -464,7 +471,7 @@ class BehaviorDetector:
         writer = None
         if save_path:
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height))
+            writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height), isColor=True)
             logger.info(f"视频将保存至: {save_path}")
         
         self.frame_count = 0

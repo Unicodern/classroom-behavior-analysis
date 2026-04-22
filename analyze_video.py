@@ -4,17 +4,17 @@
 一键完成课堂行为智能分析
 
 # 完整流程（检测 + 统计 + Kimi分析）
-python analyze_video.py --video test_video.mp4
+python analyze_video.py --video test_data\test_video.mp4
 
 # 不使用Kimi分析（仅检测统计）
-python analyze_video.py --video test_video.mp4 --no-kimi
+python analyze_video.py --video test_data\test_video.mp4 --no-kimi
 
 # 实时显示检测过程
-python analyze_video.py --video test_video.mp4 --display
+python analyze_video.py --video test_data\test_video.mp4 --display
 
 # 📹 分析本地视频文件
-python analyze_video.py --video test_video.mp4
-python analyze_video.py --video test_video.mp4 --display
+python analyze_video.py --video test_data\test_video.mp4
+python analyze_video.py --video test_data\test_video.mp4 --display
 
 # 📷 使用摄像头实时检测（默认30秒）
 python analyze_video.py --camera 0

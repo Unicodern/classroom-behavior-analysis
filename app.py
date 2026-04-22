@@ -197,7 +197,8 @@ def video_detection_task(video_path: str, session_dirs: Dict, video_name: str):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height))
+    # 明确指定彩色视频输出，确保与摄像头帧格式匹配
+    writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height), isColor=True)
 
     try:
         while True:
@@ -298,16 +299,23 @@ def camera_detection_task(camera_id: int, session_dirs: Dict):
     analyzer = camera_state['analyzer']
     save_path = str(session_dirs['video'] / f"camera_{camera_id}_live.mp4")
 
+    # 使用默认后端打开摄像头（避免DSHOW兼容性问题）
     cap = cv2.VideoCapture(camera_id)
+    if not cap.isOpened():
+        logger.warning(f"默认后端无法打开摄像头，尝试DSHOW后端...")
+        cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+    
     if not cap.isOpened():
         with camera_state['lock']:
             camera_state['running'] = False
         logger.error(f"无法打开摄像头: {camera_id}")
         return
-
-    fps = 30
+    
+    # 获取摄像头实际支持的分辨率
+    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    logger.info(f"摄像头实际分辨率: {width}x{height} @ {fps}fps")
 
     logger.info("正在预热摄像头...")
     for _ in range(5):
@@ -317,7 +325,7 @@ def camera_detection_task(camera_id: int, session_dirs: Dict):
     logger.info("摄像头预热完成")
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height))
+    writer = cv2.VideoWriter(save_path, fourcc, fps, (width, height), isColor=True)
 
     frame_count = 0
     all_behaviors = []
